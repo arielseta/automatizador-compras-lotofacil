@@ -2,10 +2,12 @@ import sys
 from pathlib import Path
 from time import sleep
 from selenium import webdriver
+from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver import ActionChains
+
+# Compatível com versao_sistema_apostador 2.98.19.10
 
 # Variaveis
 ARQUIVO_JOGOS = Path(__file__).parent / 'jogos.txt'
@@ -54,12 +56,14 @@ service = Service(ChromeDriverManager().install())
 nav = webdriver.Chrome(service=service)
 
 # Abre o navegador em tela maximizada.
+nav.implicitly_wait(3)
 nav.maximize_window()
 nav.get("https://www.loteriasonline.caixa.gov.br/silce-web/#/lotofacil")
 print('Navegador aberto.')
 # Clica no elemento 'botaosim'
 nav.find_element(By.XPATH, '//*[@id="botaosim"]').click()
 print('Sim clicado.')
+sleep(0.5)
 
 if nav.find_element(By.XPATH, '//*[@id="adopt-reject-all-button"]'):
     sleep(0.5)
@@ -74,7 +78,8 @@ print('username preenchido.')
 # Clica no elemento 'button-submit'
 nav.find_element(By.XPATH, '//*[@id="button-submit"]').click()
 print('Proximo clicado.')
-# Espera por 3s para Escolher o email ou telefone para receber o código de validação.
+# Espera por 3s para Escolher o email ou telefone para receber o código
+# de validação.
 # Caso não selecionar ele irá para o selecionado por padrao.
 print('aguardando selecao para receber o codigo validacao.')
 sleep(3)
@@ -194,7 +199,8 @@ with open(ARQUIVO_JOGOS, 'r', encoding='utf8') as arquivo:
         sleep(0.5)
         # Rola pagina para encaixar a exibição
         ActionChains(nav).scroll_to_element(nav.find_element(
-            By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a')).perform()
+            By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a')
+            ).perform()
         print('Rolagem na pagina.')
         sleep(0.5)
         # Clica no elemento 'a' (Aposte já)

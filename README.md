@@ -1,7 +1,6 @@
 # automatizador-compras-lotofacil
 Automatizador desenvolvido em Python para efetuar jogos no site https://www.loteriasonline.caixa.gov.br/silce-web/#/lotofacil
-
-
+É necessário ter uma conta ativa.
 
 # Arquivo "credenciais.txt"
 O arquivo credenciais.txt é obrigatório e de ve estar na raiz do projeto.
@@ -18,11 +17,8 @@ Seu conteúdo por linha deve conter 15 dezenas separadas pelo caractere "-":
 [MIT license](https://opensource.org/licenses/MIT).
 
 # Instalação
-Criar ambiente virtual:
-python -m venv venv
+Criar ambiente virtual: python -m venv venv
 
-Ativar ambiente virtual:
-.\venv\Scripts\activate
+Ativar ambiente virtual: .\venv\Scripts\activate
 
-Instalar as dependências do projeto:
-pip install -r requirements.txt
+Instalar as dependências do projeto: pip install -r requirements.txt

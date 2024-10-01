@@ -1,8 +1,10 @@
 import sys
+from io import BufferedReader, TextIOWrapper
 from pathlib import Path
 from time import sleep
 from selenium import webdriver
 from selenium.webdriver import ActionChains
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
@@ -10,10 +12,39 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Compatível com versao_sistema_apostador 2.98.19.10
 
 # Variaveis
+ARQUIVO_JOGOS: Path
+ARQUIVO_CREDENCIAIS: Path
 ARQUIVO_JOGOS = Path(__file__).parent / 'jogos.txt'
 ARQUIVO_CREDENCIAIS = Path(__file__).parent / 'credenciais.txt'
-USERNAME = ''
-SENHA = ''
+USERNAME: str = ''
+SENHA: str = ''
+linha: str = ''
+dezena: str = ''
+arquivo: TextIOWrapper
+buffer_arquivo: BufferedReader
+
+
+def esperar_elemento(browser, xpathcode: str) -> None:
+    """[Espera até que certo elemento WebElent seja criado no browser]
+
+    Args:
+        xpathcode (str): [Código xpath do elemento]
+    """
+    # Classe de espera
+    from selenium.webdriver.support.ui import WebDriverWait
+    # Classe de condição
+    from selenium.webdriver.support import expected_conditions as EC
+
+    # WebDriverWait(browser, segs).util(condição) ->  Espera por alguns
+    # segundos até que uma condição seja comprida, por padrão essa condição
+    # é verificada a cada 500 milisegundos até que o tempo segs expire;
+    # EC.presence_of_element_located(localizador) -> Verifica se um elemento
+    # já existe retorna um bool. O localizador (locator) é uma tupla
+    # (By.XPATH, CÓDIGO exPATH)
+    WebDriverWait(browser, 10).until(EC.presence_of_element_located(
+        (By.XPATH, xpathcode))
+    )
+
 
 # Verifica existencia do arquivo de credenciais.
 if not Path.exists(ARQUIVO_CREDENCIAIS):
@@ -45,68 +76,90 @@ else:
     print('Arquivo "jogos.txt" localizado!')
 
 # Valida se o arquivo está em UTF8
-with open(ARQUIVO_JOGOS, 'rb') as arquivo:
-    bom = arquivo.read(3)
+with open(ARQUIVO_JOGOS, 'rb') as buffer_arquivo:
+    bom: bytes = buffer_arquivo.read(3)
     if bom == b"\xef\xbb\xbf":
         print('Arquivo "jogos.txt" não está no formato UTF8!')
         sys.exit()
 
 # Cria o componente para o navegador Chrome.
-service = Service(ChromeDriverManager().install())
-nav = webdriver.Chrome(service=service)
+service: Service = Service(ChromeDriverManager().install())
+nav: WebDriver = webdriver.Chrome(service=service)
 
 # Abre o navegador em tela maximizada.
 nav.implicitly_wait(3)
 nav.maximize_window()
 nav.get("https://www.loteriasonline.caixa.gov.br/silce-web/#/lotofacil")
 print('Navegador aberto.')
+
 # Clica no elemento 'botaosim'
+esperar_elemento(nav, '//*[@id="botaosim"]')
 nav.find_element(By.XPATH, '//*[@id="botaosim"]').click()
 print('Sim clicado.')
 sleep(0.5)
 
 if nav.find_element(By.XPATH, '//*[@id="adopt-reject-all-button"]'):
-    sleep(0.5)
+    esperar_elemento(nav, '//*[@id="adopt-reject-all-button"]')
     nav.find_element(By.XPATH, '//*[@id="adopt-reject-all-button"]').click()
 
 # Clica no elemento 'btnLogin'
+esperar_elemento(nav, '//*[@id="btnLogin"]')
 nav.find_element(By.XPATH, '//*[@id="btnLogin"]').click()
 print('Acessar clicado.')
+
 # Preenche o elemento 'username' com o CPF
+esperar_elemento(nav, '//*[@id="username"]')
 nav.find_element(By.XPATH, '//*[@id="username"]').send_keys(USERNAME)
 print('username preenchido.')
+
 # Clica no elemento 'button-submit'
+esperar_elemento(nav, '//*[@id="button-submit"]')
 nav.find_element(By.XPATH, '//*[@id="button-submit"]').click()
 print('Proximo clicado.')
+
 # Espera por 3s para Escolher o email ou telefone para receber o código
 # de validação.
 # Caso não selecionar ele irá para o selecionado por padrao.
 print('aguardando selecao para receber o codigo validacao.')
 sleep(3)
+
 # Clica no elemento 'button[1]' (Receber código)
+esperar_elemento(nav, '//*[@id="form-login"]/div[2]/button[1]')
 nav.find_element(By.XPATH, '//*[@id="form-login"]/div[2]/button[1]').click()
 print('Receber codigo clicado.')
+
 # Clica no elemento 'codigo' para setar o focus do input do teclado.
+esperar_elemento(nav, '//*[@id="codigo"]')
 nav.find_element(By.XPATH, '//*[@id="codigo"]').click()
 print('focus no codigo.')
+
 # Espera por 20s para você digitar o código de validação recebido.
 print('aguardando codigo de validacao.')
 sleep(20)
+
 # Clica no elemento 'button[1]' (Enviar)
+esperar_elemento(nav, '//*[@id="form-login"]/div[3]/button[1]')
 nav.find_element(By.XPATH, '//*[@id="form-login"]/div[3]/button[1]').click()
 print('Enviar clicado.')
+
 # Preenche o elemento 'password' com a senha
+esperar_elemento(nav, '//*[@id="password"]')
 nav.find_element(By.XPATH, '//*[@id="password"]').send_keys(SENHA)
+
 # Clica no elemento 'button' (Enviar)
+esperar_elemento(nav, '//*[@id="template-section"]/form[1]/div/button')
 nav.find_element(
     By.XPATH, '//*[@id="template-section"]/form[1]/div/button').click()
 sleep(2)
+
 # Clica no elemento 'button' (Entrar)
+esperar_elemento(nav, '/html/body/div[3]/div/ul[3]/li/a/figure/h3')
 nav.find_element(
     By.XPATH, '/html/body/div[3]/div/ul[3]/li/a/figure/h3').click()
 print('Entrar clicado.')
-sleep(1)
+
 # Clica no elemento 'a' (Aposte já)
+esperar_elemento(nav, '/html/body/div[2]/header/div[4]/div[1]/div/a')
 nav.find_element(
     By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a').click()
 print('Aposte já clicado.')

@@ -1,19 +1,21 @@
+import logging
 import sys
 from io import BufferedReader, TextIOWrapper
 from pathlib import Path
 from time import sleep
+
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-import logging
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Configuração básica
-logging.basicConfig(
-    level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Compatível com versao_sistema_apostador 2.98.19.10
 
@@ -28,33 +30,73 @@ linha: str = ''
 dezena: str = ''
 arquivo: TextIOWrapper
 buffer_arquivo: BufferedReader
+nav: WebDriver
 dezenas_xpath: dict[str, str]
+# Alterar para False se desejar fechar o navegador automaticamente
+debug_mode: bool = True
 
 
-def esperar_elemento(browser, xpathcode: str) -> bool:
-    """[Espera até que certo elemento WebElent seja criado no browser]
+def clicar_elemento(nav: WebDriver, xpathcode: str, tentativas: int = 3) -> bool:
+    for tentativa in range(tentativas):
+        if esperar_elemento(nav, xpathcode):
+            try:
+                nav.find_element(By.XPATH, xpathcode).click()
+                logging.info(f'Elemento {xpathcode} clicado.')
+                return True
+            except Exception as e:
+                logging.warning(f"Tentativa {tentativa+1} falhou: {e}")
+        sleep(1)
+    logging.critical(f"Falha ao clicar no elemento {xpathcode} após {tentativas} tentativas.")
+    return False
 
-    Args:
-        xpathcode (str): [Código xpath do elemento]
-    """
-    # Classe de espera
-    from selenium.webdriver.support.ui import WebDriverWait
-    # Classe de condição
-    from selenium.webdriver.support import expected_conditions as EC
 
-    # WebDriverWait(browser, segs).util(condição) ->  Espera por alguns
-    # segundos até que uma condição seja comprida, por padrão essa condição
-    # é verificada a cada 500 milisegundos até que o tempo segs expire;
-    # EC.presence_of_element_located(localizador) -> Verifica se um elemento
-    # já existe retorna um bool. O localizador (locator) é uma tupla
-    # (By.XPATH, CÓDIGO exPATH)
+def esperar_elemento(browser: WebDriver, xpathcode: str, timeout: int = 10) -> bool:
     try:
-        WebDriverWait(browser, 10).until(
-            EC.element_to_be_clickable((By.XPATH, xpathcode))
-        )
+        WebDriverWait(browser, timeout).until(EC.element_to_be_clickable((By.XPATH, xpathcode)))
         return True
     except TimeoutException:
+        logging.warning(f"Elemento {xpathcode} não encontrado após {timeout} segundos.")
         return False
+
+
+def preencher_campo(nav: WebDriver, xpathcode: str, valor: str):
+    if esperar_elemento(nav, xpathcode):
+        nav.find_element(By.XPATH, xpathcode).send_keys(valor)
+        logging.info(f'{valor} preenchido no elemento {xpathcode}.')
+        return True
+    logging.critical(f"Elemento {xpathcode} não encontrado!")
+    return False
+
+
+def encerrar_navegador(nav: WebDriver):
+    if not debug_mode:
+        logging.info("Encerrando navegador.")
+        nav.quit()
+    sys.exit()
+
+
+def login(nav: WebDriver):
+    try:
+        # Clica no elemento 'btnLogin'
+        clicar_elemento(nav, '//*[@id="btnLogin"]')
+        # Preenche o elemento 'username' com o CPF
+        preencher_campo(nav, '//*[@id="username"]', USERNAME)
+        # Clica no elemento 'button-submit'
+        clicar_elemento(nav, '//*[@id="button-submit"]')
+        # Clica no elemento 'button[1]' (Receber código)
+        clicar_elemento(nav, '//*[@id="form-login"]/div[2]/button[1]')
+    except Exception as e:
+        logging.critical(f"Erro durante o login: {e}")
+        encerrar_navegador(nav)
+
+
+def efetuar_apostas(nav: WebDriver, linha: str):
+    for dezena in linha.strip().split('-'):
+        xpath = dezenas_xpath.get(dezena)
+        if xpath and esperar_elemento(nav, xpath):
+            clicar_elemento(nav, xpath)
+        else:
+            logging.error(f'Dezena |{dezena}| não encontrada ou elemento não clicável.')
 
 
 # Verifica existencia do arquivo de credenciais.
@@ -74,9 +116,7 @@ with open(ARQUIVO_CREDENCIAIS, 'r', encoding='utf8') as arquivo:
 
 # Valida as credenciais.
 if USERNAME == '' or SENHA == '':
-    logging.critical(
-        'Não foi encontrado os parâmetros no arquivo credenciais.txt'
-    )
+    logging.critical('Não foi encontrado os parâmetros no arquivo credenciais.txt')
     sys.exit()
 else:
     logging.info('Credenciais carregadas.')
@@ -88,10 +128,12 @@ if not Path.exists(ARQUIVO_JOGOS):
 else:
     logging.info('Arquivo "jogos.txt" localizado!')
 
+# Valida a composição das apostas.
 with open(ARQUIVO_JOGOS, 'r', encoding='utf8') as arquivo:
-    for linha in arquivo:
-        if '-' not in linha:
-            logging.critical(f'Aposta mal formatada: {linha}')
+    for index, linha in enumerate(arquivo):
+        dezenas = linha.strip().split('-')
+        if len(dezenas) not in range(15, 21):
+            logging.critical(f'Aposta mal formatada na linha {index + 1}: {linha}')
             sys.exit()
 
 # Valida se o arquivo está em UTF8
@@ -111,118 +153,46 @@ nav.get("https://www.loteriasonline.caixa.gov.br/silce-web/#/lotofacil")
 logging.info('Navegador aberto.')
 
 # Clica no elemento 'botaosim'
-try:
-    esperar_elemento(nav, '//*[@id="botaosim"]')
-    nav.find_element(By.XPATH, '//*[@id="botaosim"]').click()
-    logging.info('Sim clicado.')
-    sleep(0.5)
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Sim': {e}")
-    nav.quit()
+if not clicar_elemento(nav, '//*[@id="botaosim"]'):
+    encerrar_navegador(nav)
 
 # Clica no elemento 'adopt-reject-all-button'
-try:
-    if nav.find_element(By.XPATH, '//*[@id="adopt-reject-all-button"]'):
-        esperar_elemento(nav, '//*[@id="adopt-reject-all-button"]')
-        nav.find_element(
-            By.XPATH, '//*[@id="adopt-reject-all-button"]'
-        ).click()
-except Exception:
-    ...
+if esperar_elemento(nav, '//*[@id="adopt-reject-all-button"]'):
+    sleep(0.5)
+    clicar_elemento(nav, '//*[@id="adopt-reject-all-button"]')
 
-# Clica no elemento 'btnLogin'
-try:
-    esperar_elemento(nav, '//*[@id="btnLogin"]')
-    nav.find_element(By.XPATH, '//*[@id="btnLogin"]').click()
-    logging.info('Acessar clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Acessar': {e}")
-    nav.quit()
-
-# Preenche o elemento 'username' com o CPF
-try:
-    esperar_elemento(nav, '//*[@id="username"]')
-    nav.find_element(By.XPATH, '//*[@id="username"]').send_keys(USERNAME)
-    logging.info('username preenchido.')
-except Exception as e:
-    logging.critical(f"Erro ao preencher CPF: {e}")
-    nav.quit()
-
-# Clica no elemento 'button-submit'
-try:
-    esperar_elemento(nav, '//*[@id="button-submit"]')
-    nav.find_element(By.XPATH, '//*[@id="button-submit"]').click()
-    logging.info('Proximo clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Próximo': {e}")
-    nav.quit()
-
-# Espera por 3s para Escolher o email ou telefone para receber o código
-# de validação.
-# Caso não selecionar ele irá para o selecionado por padrao.
-logging.info('Aguardando seleção para receber o código de validação.')
-sleep(3)
-
-# Clica no elemento 'button[1]' (Receber código)
-try:
-    esperar_elemento(nav, '//*[@id="form-login"]/div[2]/button[1]')
-    nav.find_element(
-        By.XPATH, '//*[@id="form-login"]/div[2]/button[1]'
-    ).click()
-    logging.info('Receber código clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Receber código': {e}")
-    nav.quit()
+# Efetua processo de login no site.
+login(nav)
 
 # Clica no elemento 'codigo' para setar o focus do input do teclado.
-esperar_elemento(nav, '//*[@id="codigo"]')
-nav.find_element(By.XPATH, '//*[@id="codigo"]').click()
-logging.info('Focus no código.')
+if not clicar_elemento(nav, '//*[@id="codigo"]'):
+    encerrar_navegador(nav)
 
-# Espera por 20s para você digitar o código de validação recebido.
-logging.info('Aguardando digitar código de validação.')
-sleep(20)
+nav.minimize_window()
+codigo_validacao = input("Digite o código de validação e pressione Enter para continuar...")
+if len(codigo_validacao.strip()) == 6:
+    if not preencher_campo(nav, '//*[@id="codigo"]', codigo_validacao):
+        encerrar_navegador(nav)
+else:
+    logging.critical('Código de validação inválido.')
+    encerrar_navegador(nav)
+nav.maximize_window()
 
 # Clica no elemento 'button[1]' (Enviar)
-try:
-    esperar_elemento(nav, '//*[@id="form-login"]/div[3]/button[1]')
-    nav.find_element(
-        By.XPATH, '//*[@id="form-login"]/div[3]/button[1]'
-    ).click()
-    logging.info('Enviar clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Enviar': {e}")
-    nav.quit()
+if not clicar_elemento(nav, '//*[@id="form-login"]/div[3]/button[1]'):
+    encerrar_navegador(nav)
 
 # Preenche o elemento 'password' com a senha
-try:
-    esperar_elemento(nav, '//*[@id="password"]')
-    nav.find_element(By.XPATH, '//*[@id="password"]').send_keys(SENHA)
-    logging.info('password preenchido.')
-except Exception as e:
-    logging.critical(f"Erro ao preencher 'password': {e}")
-    nav.quit()
+if not preencher_campo(nav, '//*[@id="password"]', SENHA):
+    encerrar_navegador(nav)
 
 # Clica no elemento 'button' (Enviar)
-try:
-    esperar_elemento(nav, '//*[@id="template-section"]/form[1]/div/button')
-    nav.find_element(
-        By.XPATH, '//*[@id="template-section"]/form[1]/div/button').click()
-    sleep(2)
-    logging.info('Enviar clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Enviar': {e}")
-    nav.quit()
+if not clicar_elemento(nav, '//*[@id="template-section"]/form[1]/div/button'):
+    encerrar_navegador(nav)
 
 # Clica no elemento 'button' (Entrar)
-try:
-    esperar_elemento(nav, '/html/body/div[3]/div/ul[3]/li/a/figure/h3')
-    nav.find_element(
-        By.XPATH, '/html/body/div[3]/div/ul[3]/li/a/figure/h3').click()
-    logging.info('Entrar clicado.')
-except Exception as e:
-    logging.critical(f"Erro ao clicar em 'Entrar': {e}")
-    nav.quit()
+if not clicar_elemento(nav, '/html/body/div[3]/div/ul[3]/li/a/figure/h3'):
+    encerrar_navegador(nav)
 
 dezenas_xpath = {
     '01': '//*[@id="n01"]',
@@ -256,41 +226,21 @@ dezenas_xpath = {
 with open(ARQUIVO_JOGOS, 'r', encoding='utf8') as arquivo:
     for linha in arquivo:
         # Rola pagina para encaixar a exibição
-        ActionChains(nav).scroll_to_element(nav.find_element(
-            By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a')
-            ).perform()
+        ActionChains(nav).scroll_to_element(
+            nav.find_element(By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a')
+        ).perform()
         logging.info('Rolagem na pagina.')
-        sleep(0.5)
+
         # Clica no elemento 'a' (Aposte já)
-        try:
-            esperar_elemento(
-                nav, '/html/body/div[2]/header/div[4]/div[1]/div/a'
-            )
-            nav.find_element(
-                By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a'
-            ).click()
-            logging.info('Aposte já clicado.')
-            sleep(0.5)
-        except Exception as e:
-            logging.critical(f"Erro ao clicar em 'Aposte já': {e}")
-            nav.quit()
-        for dezena in linha.strip().split('-'):
-            xpath = dezenas_xpath.get(dezena)
-            if xpath:
-                try:
-                    nav.find_element(By.XPATH, xpath).click()
-                    logging.info(f'Dezena {dezena} clicado.')
-                except Exception as e:
-                    logging.critical(f"Erro ao clicar {dezena}: {e}")
-                    nav.quit()
-            else:
-                logging.error(f'Dezena |{dezena}| nao encontrada.')
+        if not clicar_elemento(nav, '/html/body/div[2]/header/div[4]/div[1]/div/a'):
+            encerrar_navegador(nav)
+
+        # Efetua as apostas da linha.
+        sleep(0.5)
+        efetuar_apostas(nav, linha)
+
         # Clica no elemento 'colocarnocarrinho' (Colocar no carrinho)
-        try:
-            nav.find_element(By.XPATH, '//*[@id="colocarnocarrinho"]').click()
-            logging.info('Colocar no carrinho clicado.')
-            sleep(0.5)
-        except Exception as e:
-            logging.critical(f"Erro ao clicar em 'Colocar no carrinho': {e}")
-            nav.quit()
+        if not clicar_elemento(nav, '//*[@id="colocarnocarrinho"]'):
+            encerrar_navegador(nav)
 logging.info('Apostas efetuadas com sucesso!')
+encerrar_navegador(nav)

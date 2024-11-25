@@ -17,8 +17,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 # Configuração básica
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Compatível com versao_sistema_apostador 2.98.19.10
-
 # Variaveis
 ARQUIVO_JOGOS: Path
 ARQUIVO_CREDENCIAIS: Path
@@ -77,11 +75,11 @@ def encerrar_navegador(nav: WebDriver):
 
 def login(nav: WebDriver):
     try:
-        # Clica no elemento 'btnLogin'
+        # Clica no elemento 'btnLogin' (Acessar)
         clicar_elemento(nav, '//*[@id="btnLogin"]')
         # Preenche o elemento 'username' com o CPF
         preencher_campo(nav, '//*[@id="username"]', USERNAME)
-        # Clica no elemento 'button-submit'
+        # Clica no elemento 'button-submit' (Próximo)
         clicar_elemento(nav, '//*[@id="button-submit"]')
         # Clica no elemento 'button[1]' (Receber código)
         clicar_elemento(nav, '//*[@id="form-login"]/div[2]/button[1]')
@@ -156,11 +154,6 @@ logging.info('Navegador aberto.')
 if not clicar_elemento(nav, '//*[@id="botaosim"]'):
     encerrar_navegador(nav)
 
-# Clica no elemento 'adopt-reject-all-button'
-if esperar_elemento(nav, '//*[@id="adopt-reject-all-button"]'):
-    sleep(0.5)
-    clicar_elemento(nav, '//*[@id="adopt-reject-all-button"]')
-
 # Efetua processo de login no site.
 login(nav)
 
@@ -186,12 +179,21 @@ if not clicar_elemento(nav, '//*[@id="form-login"]/div[3]/button[1]'):
 if not preencher_campo(nav, '//*[@id="password"]', SENHA):
     encerrar_navegador(nav)
 
-# Clica no elemento 'button' (Enviar)
+# Clica no elemento 'button' (Entrar)
 if not clicar_elemento(nav, '//*[@id="template-section"]/form[1]/div/button'):
     encerrar_navegador(nav)
 
-# Clica no elemento 'button' (Entrar)
-if not clicar_elemento(nav, '/html/body/div[3]/div/ul[3]/li/a/figure/h3'):
+# Clica no elemento 'adopt-reject-all-button'
+if esperar_elemento(nav, '//*[@id="adopt-reject-all-button"]'):
+    sleep(0.5)
+    clicar_elemento(nav, '//*[@id="adopt-reject-all-button"]')
+
+# Clica no elemento 'Lotofacil'
+if not clicar_elemento(nav, '//*[@id="Lotofácil"]'):
+    encerrar_navegador(nav)
+
+# # Clica no elemento 'a' (Aposte já)
+if not clicar_elemento(nav, '//*[@id="HeaderView.html"]/div[3]/div[1]/div/a'):
     encerrar_navegador(nav)
 
 dezenas_xpath = {
@@ -225,16 +227,6 @@ dezenas_xpath = {
 # Abre o arquivo.csv que contem as apostas
 with open(ARQUIVO_JOGOS, 'r', encoding='utf8') as arquivo:
     for linha in arquivo:
-        # Rola pagina para encaixar a exibição
-        ActionChains(nav).scroll_to_element(
-            nav.find_element(By.XPATH, '/html/body/div[2]/header/div[4]/div[1]/div/a')
-        ).perform()
-        logging.info('Rolagem na pagina.')
-
-        # Clica no elemento 'a' (Aposte já)
-        if not clicar_elemento(nav, '/html/body/div[2]/header/div[4]/div[1]/div/a'):
-            encerrar_navegador(nav)
-
         # Efetua as apostas da linha.
         sleep(0.5)
         efetuar_apostas(nav, linha)
@@ -242,5 +234,10 @@ with open(ARQUIVO_JOGOS, 'r', encoding='utf8') as arquivo:
         # Clica no elemento 'colocarnocarrinho' (Colocar no carrinho)
         if not clicar_elemento(nav, '//*[@id="colocarnocarrinho"]'):
             encerrar_navegador(nav)
+
+        # Rola pagina para encaixar a exibição
+        ActionChains(nav).scroll_by_amount(0, -200).perform()
+        logging.info('Rolagem na pagina.')
+
 logging.info('Apostas efetuadas com sucesso!')
 encerrar_navegador(nav)

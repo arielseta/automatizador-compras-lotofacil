@@ -15,6 +15,8 @@ Seu conteúdo por linha deve conter 15 dezenas separadas pelo caractere "-":
 01-02-03-04-05-06-07-08-10-13-14-15-16-22-24
 ```
 
+# Compatível com versao_sistema_apostador 2.98.30.3
+
 # Instalação
 Criar ambiente virtual:
 ```python -m venv venv```

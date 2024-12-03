@@ -90,6 +90,7 @@ def login(nav: WebDriver):
 
 def efetuar_apostas(nav: WebDriver, linha: str):
     for dezena in linha.strip().split('-'):
+        dezena = dezena.zfill(2)
         xpath = dezenas_xpath.get(dezena)
         if xpath and esperar_elemento(nav, xpath):
             clicar_elemento(nav, xpath)

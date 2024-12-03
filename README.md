@@ -13,6 +13,8 @@ O arquivo jogos.txt é obrigatório e de ve estar na raiz do projeto, seu format
 ```
 Seu conteúdo por linha deve conter 15 dezenas separadas pelo caractere "-":
 01-02-03-04-05-06-07-08-10-13-14-15-16-22-24
+ou
+1-2-3-4-5-6-7-8-10-13-14-15-16-22-24
 ```
 
 # Compatível com versao_sistema_apostador 2.98.30.3
@@ -26,6 +28,9 @@ Ativar ambiente virtual:
 
 Instalar as dependências do projeto:
 ```pip install -r requirements.txt```
+
+Executar aplicativo:
+```python app.py```
 
 # License
 [MIT license](https://opensource.org/licenses/MIT).
